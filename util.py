@@ -42,7 +42,8 @@ def preprocessData(path):
             # remove punctuations
             s = re.sub(r'[^\w]', ' ', s)
             # replace 
-            reviewText.append(s.lower())
+            s = s.lower()
+            reviewText.append(s)
     return ratings, reviewText
 
 
@@ -55,6 +56,39 @@ def createFeatures(reviews, ratings, wordToIndex, m):
             if word in wordToIndex:
                 X[i, wordToIndex[word]] = 1
     return X, y
+
+def createWordVectorFeatures(reviews, ratings, dic, m, n = 300):
+    y = np.array(ratings[:m])
+    X = np.zeros((m, n))
+    for i in range(m):
+        for word in reviews[i].split():
+            if word in dic:
+                X[i, :] += dic[word]
+    return X, y
                 
+    
+def linRegPredict(model, Xval):
+    yPredict = model.predict(Xval)
+    yPredict = np.rint(yPredict).astype(np.int)
+    yPredict[yPredict < 1] = 1
+    yPredict[yPredict > 5] = 5
+    return yPredict
+
+def evalModel(yPred, yval):
+    accuracy = np.mean((yPred == np.array(yval)))
+    confM = np.zeros((5, 5))
+    for i in range(len(yval)):
+        confM[yval[i]-1][yPred[i]-1] += 1
+    # compute the average F1 score
+    pred = np.sum(confM, axis = 0)
+    val = np.sum(confM, axis = 1)
+    precision = np.array([confM[i][i] / pred[i] if pred[i] > 0 else 0 for i in range(5)])
+    recall = np.array([confM[i][i] / val[i] if val[i] > 0 else 0 for i in range(5)])
+    denom = precision + recall
+    denom[denom == 0] = 1
+    F1 = 2 * precision * recall / denom
+    F1[np.isnan(F1)] = 0
+    return accuracy, np.mean(F1), confM
+    
 
 
